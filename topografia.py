@@ -264,32 +264,28 @@ elev_stats = dict(min=float(np.nanmin(elev)), max=float(np.nanmax(elev)),
 slope_summary = dict(mean=float(np.nanmean(sl)), median=float(np.nanmedian(sl)),
                      p95=float(np.nanpercentile(sl, 95)), max=float(np.nanmax(sl)))
  
- 
 # ============================================================================
-# 8. ALINEACION VIENTO-LADERA
+# 8. ALINEACIÓN VIENTO-LADERA (coseno, solo flujo NE — igual que los corredores)
 # ============================================================================
-# Una ladera favorece la propagacion ascendente cuando esta orientada hacia la
-# procedencia del viento (el flujo empuja al fuego ladera arriba y se suma a la
-# pendiente). Se considera alineada cuando su orientacion queda a menos de 45 deg
-# de la direccion de la que procede el viento. El desfase angular se calcula de
-# forma circular para que funcione en el paso por el Norte (p. ej. 350 y 10 deg).
+VIENTO_PROCEDENCIA = 45      # procedencia del viento sinóptico dominante (NE)
+UMBRAL_ALINEACION  = 0.5     # coseno >= 0.5  => dentro de ±60° de alineación perfecta
+
 asp_valid = asp[asp >= 0]
-def aligned_fraction(wind_from_deg, tol=45):
-    diff = np.abs((asp_valid - wind_from_deg + 180) % 360 - 180)
-    return 100 * float((diff <= tol).sum()) / len(asp_valid)
- 
-# Vientos dominantes del episodio (del analisis meteorologico): flujo del NE-N y
-# componente secundaria del SSO.
-align = dict(N=aligned_fraction(0), NE=aligned_fraction(45),
-             SSW=aligned_fraction(202.5))
- 
-# Volcado de todas las cifras a un fichero JSON (material para la redaccion).
-results = dict(px=px, pix_ha=pix_ha, n_pix=npix, area_ha=npix * pix_ha,
-               elev=elev_stats, slope_summary=slope_summary,
-               slope_stats=slope_stats, aspect_stats=aspect_stats,
-               umbria_n=umbria, solana_n=solana, este_n=este, oeste_n=oeste,
-               align=align)
-json.dump(results, open(os.path.join(DST, "topo_stats.json"), "w"), indent=2, default=float)
+sl_valid  = sl[asp >= 0]
+cos_align = np.cos(np.radians(asp_valid - VIENTO_PROCEDENCIA))
+
+n_alin = int((cos_align >= UMBRAL_ALINEACION).sum())                        # laderas favorables
+n_crit = int(((cos_align >= UMBRAL_ALINEACION) & (sl_valid >= 15)).sum())   # favorables + pend>=15
+
+align = dict(
+    NE_alineada_pct = 100 * n_alin / npix,   # % del perímetro
+    NE_alineada_ha  = n_alin * pix_ha,
+    NE_critica_pct  = 100 * n_crit / npix,   # % del perímetro (alineada + pendiente>=15)
+    NE_critica_ha   = n_crit * pix_ha
+)
+print("--- Alineación viento-ladera (flujo NE, coseno>=0.5) ---")
+print("  Favorable:        %.1f %%  (%.0f ha)" % (align['NE_alineada_pct'], align['NE_alineada_ha']))
+print("  Favorable + >=15: %.1f %%  (%.0f ha)" % (align['NE_critica_pct'], align['NE_critica_ha']))
  
  
 # ============================================================================
@@ -360,16 +356,13 @@ us[sec == 2] = 2                              # este
 us[sec == 6] = 3                              # oeste
 write_geotiff_byte(os.path.join(DST, "jarilla_umbria_solana.tif"), us)
  
-# 10.3 Alineacion viento-ladera categorica: 0 no alineada, 1 SSO, 2 NE-N, 255 fuera.
-def _align_mask(a, wdir, tol=45):
-    diff = np.abs((a - wdir + 180) % 360 - 180)
-    return (diff <= tol) & (a >= 0)
-A_pred = _align_mask(aspect, 0) | _align_mask(aspect, 45)
-A_ssw = _align_mask(aspect, 202.5)
+# 10.3 Alineacion viento-ladera categorica (solo flujo NE): 0 no alineada, 1 alineada, 255 fuera.
+def _align_mask(a, wdir):
+    return (np.cos(np.radians(a - wdir)) >= UMBRAL_ALINEACION) & (a >= 0)
+A_ne = _align_mask(aspect, VIENTO_PROCEDENCIA)
 al = np.full(aspect.shape, 255, dtype=np.uint8)
 al[mask] = 0
-al[mask & A_ssw] = 1
-al[mask & A_pred] = 2
+al[mask & A_ne] = 1
 write_geotiff_byte(os.path.join(DST, "jarilla_alineacion.tif"), al)
  
 # 10.4 Generadores de ficheros de estilo .qml (formato QGIS 3.x).
@@ -422,10 +415,10 @@ _save(os.path.join(DST, "jarilla_orientacion_sectores.qml"), qml_paletted(
 _save(os.path.join(DST, "jarilla_umbria_solana.qml"), qml_paletted(
     [(0, "#4575b4", "Umbría (NO-N-NE)"), (1, "#d73027", "Solana (SE-S-SO)"),
      (2, "#fee090", "Este"), (3, "#fdae61", "Oeste")]))
-# Alineacion viento-ladera.
+# Alineacion viento-ladera (solo flujo NE).
 _save(os.path.join(DST, "jarilla_alineacion.qml"), qml_paletted(
-    [(0, "#dfdfdf", "No alineada"), (1, "#fdae61", "Alineada flujo SSO"),
-     (2, "#d73027", "Alineada flujo NE-N (ascendente)")]))
+    [(0, "#dfdfdf", "No alineada"),
+     (1, "#d73027", "Alineada flujo NE (ascendente)")]))
  
  
 # ============================================================================
