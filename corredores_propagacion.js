@@ -63,8 +63,7 @@ var severidad = dNBR
   .where(dNBR.gte(440).and(dNBR.lt(660)),5).where(dNBR.gte(660),6).rename('severidad');
  
 // ====================== 2. TOPOGRAFIA: pendiente y alineacion ======================
-// MDE de 30 m (SRTM): es una imagen unica con proyeccion bien definida, por lo que
-// la pendiente y la orientacion se calculan correctamente (el GLO-30 en mosaico fallaba).
+// MDE05 subido previamente
 var dem   = ee.Image('projects/iberia2025/assets/mdt05_jarilla');
 var slope = ee.Terrain.slope(dem).clip(aoi).rename('pendiente');    // grados
 var aspect= ee.Terrain.aspect(dem).clip(aoi).rename('orientacion'); // grados (ladera de bajada)
