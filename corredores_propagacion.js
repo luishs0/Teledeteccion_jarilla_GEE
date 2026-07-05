@@ -21,7 +21,7 @@
  ***********************************************************************************/
  
 // ============================ 0. PARAMETROS ============================
-var PERIMETRO_ASSET = 'users/LHernandezS/incendio_jarilla';   // perimetro ya subido
+var PERIMETRO_ASSET = 'projects/iberia2025/assets/perimetro_incendio';   // perimetro ya subido
 var aoi = ee.FeatureCollection(PERIMETRO_ASSET).geometry();
  
 // Viento dominante del episodio: PROCEDENCIA del NE ~ 45 grados.
@@ -65,7 +65,7 @@ var severidad = dNBR
 // ====================== 2. TOPOGRAFIA: pendiente y alineacion ======================
 // MDE de 30 m (SRTM): es una imagen unica con proyeccion bien definida, por lo que
 // la pendiente y la orientacion se calculan correctamente (el GLO-30 en mosaico fallaba).
-var dem   = ee.Image('USGS/SRTMGL1_003');
+var dem   = ee.Image('projects/iberia2025/assets/mdt05_jarilla');
 var slope = ee.Terrain.slope(dem).clip(aoi).rename('pendiente');    // grados
 var aspect= ee.Terrain.aspect(dem).clip(aoi).rename('orientacion'); // grados (ladera de bajada)
  
