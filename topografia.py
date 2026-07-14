@@ -543,3 +543,4 @@ print(f"  Altitud: {elev_stats['min']:.0f}-{elev_stats['max']:.0f} m "
       f"(media {elev_stats['mean']:.0f} m)")
 print(f"  Pendiente media: {slope_summary['mean']:.1f} deg")
 print(f"  Productos escritos en: {DST}")
+
